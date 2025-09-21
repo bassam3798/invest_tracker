@@ -1,0 +1,59 @@
+import 'package:flutter/material.dart';
+import 'pages/input_page.dart';
+import 'pages/page_two.dart';
+import 'pages/page_three.dart';
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  void _open(BuildContext context, Widget page) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => page),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Invest Tracker')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () => _open(context, const PageOne()),
+                // Increase padding and font size to make the button bigger and higher
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                  textStyle: const TextStyle(fontSize: 18),
+                ),
+                child: const Text('Add Stock'),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => _open(context, const PageTwo()),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                  textStyle: const TextStyle(fontSize: 18),
+                ),
+                child: const Text('Open Page Two'),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => _open(context, const PageThree()),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                  textStyle: const TextStyle(fontSize: 18),
+                ),
+                child: const Text('Open Page Three'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
