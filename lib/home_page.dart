@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'pages/input_page.dart';
-import 'pages/page_two.dart';
+import 'pages/active_trades.dart';
 import 'pages/page_three.dart';
 
 class HomePage extends StatelessWidget {

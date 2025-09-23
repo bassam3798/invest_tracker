@@ -78,7 +78,8 @@ class _PageOneState extends State<PageOne> {
       }
       try {
         final ticker = _tickerController.text.trim().toUpperCase();
-        final commission = double.parse(_commissionController.text.trim());
+        final commissionText = _commissionController.text.trim();
+        final commission = commissionText.isEmpty ? 0.0 : double.parse(commissionText);
         final buyPrice = double.parse(_buyPriceController.text.trim());
         final quantityBought = int.parse(_quantityBoughtController.text.trim());
         final quantitySold = _quantitySoldController.text.trim().isEmpty
@@ -88,15 +89,42 @@ class _PageOneState extends State<PageOne> {
             ? null
             : double.parse(_sellPriceController.text.trim());
 
+        // Cross-field validations
+        if (quantitySold != null && quantitySold > quantityBought) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Quantity sold cannot exceed quantity bought')),
+          );
+          return;
+        }
+        if (_sellDate != null) {
+          if (_buyDate == null) {
+            messenger.showSnackBar(
+              const SnackBar(content: Text('Buy date is required when sell date exists')),
+            );
+            return;
+          }
+          if (!_sellDate!.isAfter(_buyDate!)) {
+            messenger.showSnackBar(
+              const SnackBar(content: Text('Sell date must be after buy date')),
+            );
+            return;
+          }
+        }
+
+        final sold = quantitySold ?? 0;
+        final remaining = quantityBought - sold;
+        final status = remaining > 0 ? 'active' : 'done';
+
         final data = <String, dynamic>{
           'ticker': ticker,
           'commission': commission,
           'buyPrice': buyPrice,
           'quantityBought': quantityBought,
           'buyDate': Timestamp.fromDate(_buyDate!),
-          'quantitySold': quantitySold,
+          'quantitySold': quantitySold ?? 0,
           'sellDate': _sellDate != null ? Timestamp.fromDate(_sellDate!) : null,
           'sellPrice': sellPrice,
+          'status': status,
           'createdAt': FieldValue.serverTimestamp(),
         };
 
@@ -181,7 +209,7 @@ class _PageOneState extends State<PageOne> {
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Commission is required (0 if none)';
+                        return null; // default to 0 if empty
                       }
                       if (double.tryParse(value) == null) {
                         return 'Enter a valid number';
@@ -264,8 +292,13 @@ class _PageOneState extends State<PageOne> {
                       if (value == null || value.isEmpty) {
                         return null; // optional
                       }
-                      if (int.tryParse(value) == null) {
+                      final sold = int.tryParse(value);
+                      if (sold == null) {
                         return 'Enter a valid integer';
+                      }
+                      final bought = int.tryParse(_quantityBoughtController.text);
+                      if (bought != null && sold > bought) {
+                        return 'Quantity sold cannot exceed quantity bought';
                       }
                       return null;
                     },
