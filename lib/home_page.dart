@@ -15,6 +15,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Invest Tracker'),
@@ -36,6 +37,11 @@ class HomePage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Text(
+                'Welcome, ${user?.displayName ?? user?.email ?? 'User'}',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () => _open(context, const PageOne()),
                 // Increase padding and font size to make the button bigger and higher

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// A page that allows the user to input stock trade information.
 ///
@@ -58,18 +60,77 @@ class _PageOneState extends State<PageOne> {
     }
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (_formKey.currentState?.validate() ?? false) {
+      final messenger = ScaffoldMessenger.of(context);
       if (_buyDate == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Please select a buy date')),
         );
         return;
       }
-      // All validations passed. Process the form data here (e.g. save to database).
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Form submitted successfully')),
-      );
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('You must be signed in to save a stock')),
+        );
+        return;
+      }
+      try {
+        final ticker = _tickerController.text.trim().toUpperCase();
+        final commission = double.parse(_commissionController.text.trim());
+        final buyPrice = double.parse(_buyPriceController.text.trim());
+        final quantityBought = int.parse(_quantityBoughtController.text.trim());
+        final quantitySold = _quantitySoldController.text.trim().isEmpty
+            ? null
+            : int.parse(_quantitySoldController.text.trim());
+        final sellPrice = _sellPriceController.text.trim().isEmpty
+            ? null
+            : double.parse(_sellPriceController.text.trim());
+
+        final data = <String, dynamic>{
+          'ticker': ticker,
+          'commission': commission,
+          'buyPrice': buyPrice,
+          'quantityBought': quantityBought,
+          'buyDate': Timestamp.fromDate(_buyDate!),
+          'quantitySold': quantitySold,
+          'sellDate': _sellDate != null ? Timestamp.fromDate(_sellDate!) : null,
+          'sellPrice': sellPrice,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('stocks')
+            .add(data);
+
+        if (!mounted) return;
+
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Stock saved')),
+        );
+
+        // Clear the form
+        _tickerController.clear();
+        _commissionController.clear();
+        _buyPriceController.clear();
+        _quantityBoughtController.clear();
+        _quantitySoldController.clear();
+        _sellPriceController.clear();
+        if (!mounted) return;
+        if (mounted) {
+          setState(() {
+            _buyDate = null;
+            _sellDate = null;
+          });
+        }
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Failed to save: $e')),
+        );
+      }
     }
   }
 
