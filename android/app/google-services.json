@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "896927124962",
+    "project_id": "invest-tracker-44da2",
+    "storage_bucket": "invest-tracker-44da2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:896927124962:android:c35046f3de71a837c67dbb",
+        "android_client_info": {
+          "package_name": "com.example.invest_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBp0kmukod9ODh6gHBvRrzY1sNab0Sb7eI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

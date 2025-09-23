@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'pages/input_page.dart';
 import 'pages/page_two.dart';
@@ -15,7 +16,19 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Invest Tracker')),
+      appBar: AppBar(
+        title: const Text('Invest Tracker'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              // No manual navigation needed: AuthGate listens to authStateChanges()
+              // and will show LoginRegisterPage when the user becomes null.
+            },
+          ),
+        ],
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16),
