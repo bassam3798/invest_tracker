@@ -20,7 +20,10 @@ class PageOne extends StatefulWidget {
 class _PageOneState extends State<PageOne> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _tickerController = TextEditingController();
+  final TextEditingController _commissionController = TextEditingController();
   final TextEditingController _buyPriceController = TextEditingController();
+  final TextEditingController _quantityBoughtController = TextEditingController();
+  final TextEditingController _quantitySoldController = TextEditingController();
   final TextEditingController _sellPriceController = TextEditingController();
   DateTime? _buyDate;
   DateTime? _sellDate;
@@ -28,7 +31,10 @@ class _PageOneState extends State<PageOne> {
   @override
   void dispose() {
     _tickerController.dispose();
+    _commissionController.dispose();
     _buyPriceController.dispose();
+    _quantityBoughtController.dispose();
+    _quantitySoldController.dispose();
     _sellPriceController.dispose();
     super.dispose();
   }
@@ -98,6 +104,27 @@ class _PageOneState extends State<PageOne> {
                       if (value.length < 3 || value.length > 4) {
                         return 'Ticker must be 3 or 4 characters';
                       }
+                      if (!RegExp(r'^[A-Z]{3,4}$').hasMatch(value)) {
+                        return 'Ticker must be 3 or 4 capital letters only';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _commissionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Commission',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Commission is required (0 if none)';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Enter a valid number';
+                      }
                       return null;
                     },
                   ),
@@ -128,7 +155,7 @@ class _PageOneState extends State<PageOne> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Buy Price field: mandatory integer field.
+                  // Buy Price field: mandatory double field.
                   TextFormField(
                     controller: _buyPriceController,
                     decoration: const InputDecoration(
@@ -140,8 +167,44 @@ class _PageOneState extends State<PageOne> {
                       if (value == null || value.isEmpty) {
                         return 'Buy price is required';
                       }
-                      if (int.tryParse(value) == null) {
+                      if (double.tryParse(value) == null) {
                         return 'Enter a valid number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _quantityBoughtController,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity Bought',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Quantity bought is required';
+                      }
+                      if (int.tryParse(value) == null) {
+                        return 'Enter a valid integer';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _quantitySoldController,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity Sold',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return null; // optional
+                      }
+                      if (int.tryParse(value) == null) {
+                        return 'Enter a valid integer';
                       }
                       return null;
                     },
@@ -167,7 +230,7 @@ class _PageOneState extends State<PageOne> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Sell Price field: optional integer field.
+                  // Sell Price field: optional double field.
                   TextFormField(
                     controller: _sellPriceController,
                     decoration: const InputDecoration(
@@ -179,7 +242,7 @@ class _PageOneState extends State<PageOne> {
                       if (value == null || value.isEmpty) {
                         return null; // optional field
                       }
-                      if (int.tryParse(value) == null) {
+                      if (double.tryParse(value) == null) {
                         return 'Enter a valid number';
                       }
                       return null;
