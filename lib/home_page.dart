@@ -58,7 +58,7 @@ class HomePage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
                   textStyle: const TextStyle(fontSize: 18),
                 ),
-                child: const Text('Open Page Two'),
+                child: const Text('Active Trades'),
               ),
               const SizedBox(height: 12),
               ElevatedButton(

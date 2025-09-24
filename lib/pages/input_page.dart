@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 /// A page that allows the user to input stock trade information.
 ///
@@ -97,16 +98,9 @@ class _PageOneState extends State<PageOne> {
           return;
         }
         if (_sellDate != null) {
-          if (_buyDate == null) {
-            messenger.showSnackBar(
-              const SnackBar(content: Text('Buy date is required when sell date exists')),
-            );
-            return;
-          }
-          if (!_sellDate!.isAfter(_buyDate!)) {
-            messenger.showSnackBar(
-              const SnackBar(content: Text('Sell date must be after buy date')),
-            );
+          if (_buyDate == null || !_sellDate!.isAfter(_buyDate!)) {
+            // Let the field validator show the inline error
+            _formKey.currentState!.validate();
             return;
           }
         }
@@ -186,15 +180,19 @@ class _PageOneState extends State<PageOne> {
                       hintText: 'e.g. AAPL',
                       border: OutlineInputBorder(),
                     ),
+                    maxLength: 4,
+                    inputFormatters: [
+                      UpperCaseTextFormatter(),
+                    ],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Ticker is required';
                       }
-                      if (value.length < 3 || value.length > 4) {
-                        return 'Ticker must be 3 or 4 characters';
+                      if (!RegExp(r'^[A-Z]+$').hasMatch(value)) {
+                        return 'Ticker must contain only capital letters';
                       }
-                      if (!RegExp(r'^[A-Z]{3,4}$').hasMatch(value)) {
-                        return 'Ticker must be 3 or 4 capital letters only';
+                      if (value.length > 4) {
+                        return 'Ticker cannot be more than 4 letters';
                       }
                       return null;
                     },
@@ -320,6 +318,16 @@ class _PageOneState extends State<PageOne> {
                               ? ''
                               : _sellDate!.toLocal().toString().split(' ')[0],
                         ),
+                        validator: (value) {
+                          if (_sellDate == null) return null; // optional field
+                          if (_buyDate == null) {
+                            return 'Buy date is required when sell date exists';
+                          }
+                          if (!_sellDate!.isAfter(_buyDate!)) {
+                            return 'Sell date must be after buy date';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                   ),
@@ -371,6 +379,16 @@ class _PageOneState extends State<PageOne> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return newValue.copyWith(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }
