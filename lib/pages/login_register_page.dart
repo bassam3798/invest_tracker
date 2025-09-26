@@ -1,4 +1,3 @@
-// lib/pages/login_register_page.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -44,6 +43,45 @@ class _LoginRegisterPageState extends State<LoginRegisterPage>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  Future<void> _showErrorDialog(String title, String message) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _mapAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-email':
+        return 'The email address is badly formatted.';
+      case 'user-not-found':
+        return 'The email or password you entered is not correct.';
+      case 'wrong-password':
+        return 'The email or password you entered is not correct.';
+      case 'invalid-credential':
+      case 'invalid-login-credentials':
+        return 'The email or password you entered is not correct.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'Network error. Check your connection and try again.';
+      default:
+        return 'An unexpected error occurred (code: ${e.code}).';
+    }
+  }
+
   Future<void> _doLogin() async {
     if (!(_loginForm.currentState?.validate() ?? false)) return;
     setState(() => _busy = true);
@@ -53,8 +91,11 @@ class _LoginRegisterPageState extends State<LoginRegisterPage>
         password: _loginPassword.text,
       );
       // AuthGate will route to HomePage automatically
+    } on FirebaseAuthException catch (e) {
+      final msg = _mapAuthError(e);
+      await _showErrorDialog('Login failed', msg);
     } catch (e) {
-      _showSnack('Login failed: $e');
+      await _showErrorDialog('Login failed', e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
