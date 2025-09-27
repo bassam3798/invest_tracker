@@ -31,6 +31,14 @@ class _PageOneState extends State<PageOne> {
   DateTime? _buyDate;
   DateTime? _sellDate;
 
+  // Helper to determine if any sell-group field is active
+  bool _isSellGroupActive() {
+    final hasQtySold = _quantitySoldController.text.trim().isNotEmpty;
+    final hasSellPrice = _sellPriceController.text.trim().isNotEmpty;
+    final hasSellDate = _sellDate != null;
+    return hasQtySold || hasSellPrice || hasSellDate;
+  }
+
   @override
   void dispose() {
     _tickerController.dispose();
@@ -62,97 +70,96 @@ class _PageOneState extends State<PageOne> {
   }
 
   Future<void> _submit() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      final messenger = ScaffoldMessenger.of(context);
-      if (_buyDate == null) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Please select a buy date')),
-        );
-        return;
-      }
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('You must be signed in to save a stock')),
-        );
-        return;
-      }
-      try {
-        final ticker = _tickerController.text.trim().toUpperCase();
-        final commissionText = _commissionController.text.trim();
-        final commission = commissionText.isEmpty ? 0.0 : double.parse(commissionText);
-        final buyPrice = double.parse(_buyPriceController.text.trim());
-        final quantityBought = int.parse(_quantityBoughtController.text.trim());
-        final quantitySold = _quantitySoldController.text.trim().isEmpty
-            ? null
-            : int.parse(_quantitySoldController.text.trim());
-        final sellPrice = _sellPriceController.text.trim().isEmpty
-            ? null
-            : double.parse(_sellPriceController.text.trim());
+    // First, run field-level validators that depend on current state
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-        // Cross-field validations
-        if (quantitySold != null && quantitySold > quantityBought) {
-          messenger.showSnackBar(
-            const SnackBar(content: Text('Quantity sold cannot exceed quantity bought')),
-          );
-          return;
-        }
-        if (_sellDate != null) {
-          if (_buyDate == null || !_sellDate!.isAfter(_buyDate!)) {
-            // Let the field validator show the inline error
-            _formKey.currentState!.validate();
-            return;
-          }
-        }
+    final messenger = ScaffoldMessenger.of(context);
+    // Ensure Buy Date exists always (independent requirement)
+    if (_buyDate == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Please select a buy date')),
+      );
+      return;
+    }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('You must be signed in to save a stock')),
+      );
+      return;
+    }
+    try {
+      final ticker = _tickerController.text.trim().toUpperCase();
+      final commissionText = _commissionController.text.trim();
+      final commission = commissionText.isEmpty ? 0.0 : double.parse(commissionText);
+      final buyPrice = double.parse(_buyPriceController.text.trim());
+      final quantityBought = int.parse(_quantityBoughtController.text.trim());
+      final quantitySold = _quantitySoldController.text.trim().isEmpty
+          ? null
+          : int.parse(_quantitySoldController.text.trim());
+      final sellPrice = _sellPriceController.text.trim().isEmpty
+          ? null
+          : double.parse(_sellPriceController.text.trim());
 
-        final sold = quantitySold ?? 0;
-        final remaining = quantityBought - sold;
-        final status = remaining > 0 ? 'active' : 'done';
+      // No need for cross-field sell date or quantity sold checks here; validators handle them
 
-        final data = <String, dynamic>{
-          'ticker': ticker,
-          'commission': commission,
-          'buyPrice': buyPrice,
-          'quantityBought': quantityBought,
-          'buyDate': Timestamp.fromDate(_buyDate!),
-          'quantitySold': quantitySold ?? 0,
-          'sellDate': _sellDate != null ? Timestamp.fromDate(_sellDate!) : null,
-          'sellPrice': sellPrice,
-          'status': status,
-          'createdAt': FieldValue.serverTimestamp(),
-        };
+      final sold = quantitySold ?? 0;
+      final remaining = quantityBought - sold;
+      final status = remaining > 0 ? 'active' : 'done';
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('stocks')
-            .add(data);
+      final data = <String, dynamic>{
+        'ticker': ticker,
+        'commission': commission,
+        'buyPrice': buyPrice,
+        'quantityBought': quantityBought,
+        'buyDate': Timestamp.fromDate(_buyDate!),
+        'quantitySold': quantitySold ?? 0,
+        'sellDate': _sellDate != null ? Timestamp.fromDate(_sellDate!) : null,
+        'sellPrice': sellPrice,
+        'status': status,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
 
-        if (!mounted) return;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('stocks')
+          .add(data);
 
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Stock saved')),
-        );
+      if (!mounted) return;
 
-        // Clear the form
-        _tickerController.clear();
-        _commissionController.clear();
-        _buyPriceController.clear();
-        _quantityBoughtController.clear();
-        _quantitySoldController.clear();
-        _sellPriceController.clear();
-        if (!mounted) return;
-        if (mounted) {
-          setState(() {
-            _buyDate = null;
-            _sellDate = null;
-          });
-        }
-      } catch (e) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Failed to save: $e')),
-        );
-      }
+      // Show blocking success dialog; require explicit OK to dismiss
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Saved'),
+          content: Text('Stock $ticker saved successfully'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+
+      // Clear the form after acknowledging
+      _tickerController.clear();
+      _commissionController.clear();
+      _buyPriceController.clear();
+      _quantityBoughtController.clear();
+      _quantitySoldController.clear();
+      _sellPriceController.clear();
+      if (!mounted) return;
+      setState(() {
+        _buyDate = null;
+        _sellDate = null;
+      });
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to save: $e')),
+      );
     }
   }
 
@@ -166,7 +173,7 @@ class _PageOneState extends State<PageOne> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Add space from the top to position the form lower on the page.
-            const SizedBox(height: 40),
+            const SizedBox(height: 10),
             Form(
               key: _formKey,
               child: Column(
@@ -311,8 +318,9 @@ class _PageOneState extends State<PageOne> {
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return null; // optional
+                      final active = _isSellGroupActive();
+                      if ((value == null || value.isEmpty)) {
+                        return active ? 'Quantity sold is required when selling' : null;
                       }
                       final sold = int.tryParse(value);
                       if (sold == null) {
@@ -343,13 +351,11 @@ class _PageOneState extends State<PageOne> {
                               : _sellDate!.toLocal().toString().split(' ')[0],
                         ),
                         validator: (value) {
-                          if (_sellDate == null) return null; // optional field
-                          if (_buyDate == null) {
-                            return 'Buy date is required when sell date exists';
-                          }
-                          if (!_sellDate!.isAfter(_buyDate!)) {
-                            return 'Sell date must be after buy date';
-                          }
+                          final active = _isSellGroupActive();
+                          if (!active) return null; // optional unless selling info provided
+                          if (_sellDate == null) return 'Sell date is required when selling';
+                          if (_buyDate == null) return 'Buy date is required when selling';
+                          if (_sellDate!.isBefore(_buyDate!)) return 'Sell date cannot be before buy date';
                           return null;
                         },
                       ),
@@ -365,8 +371,9 @@ class _PageOneState extends State<PageOne> {
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
+                      final active = _isSellGroupActive();
                       if (value == null || value.isEmpty) {
-                        return null; // optional field
+                        return active ? 'Sell price is required when selling' : null;
                       }
                       if (double.tryParse(value) == null) {
                         return 'Enter a valid number';
