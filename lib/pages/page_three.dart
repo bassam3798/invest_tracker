@@ -108,14 +108,52 @@ class _PageThreeState extends State<PageThree> {
               // Totals summary bar
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 16,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text('Total Invested: ${_fmtNum(totalInvested)}'),
-                    Text('Total W/L: ${_fmtSigned(totalWL)}', style: TextStyle(color: _valueColor(totalWL))),
-                    Text('Total CHG%: ${_fmtSigned(totalChgPct)}%', style: TextStyle(color: _valueColor(totalWL))),
+                    // Centered Total W/L (label normal color, value colored)
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(text: 'Total W/L: '),
+                          TextSpan(
+                            text: _fmtSigned(totalWL),
+                            style: TextStyle(color: _valueColor(totalWL), fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    // Row below: left = Total Invested, right = Total CHG%
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Left: Total Invested (no special color on value)
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(text: 'Total Invested: '),
+                              TextSpan(text: _fmtNum(totalInvested), style: const TextStyle(fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                        // Right: Total CHG% (color only on numeric value)
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(text: 'Total CHG%: '),
+                              TextSpan(
+                                text: '${_fmtSigned(totalChgPct)}%',
+                                style: TextStyle(color: _valueColor(totalChgPct), fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

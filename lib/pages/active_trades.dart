@@ -22,6 +22,26 @@ class _PageTwoState extends State<PageTwo> {
   Set<String> _symbols = {};
   int? _selectedRow;
 
+  Future<void> _saveLivePriceToDb(String symbol, double price) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final col = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('stocks');
+    // Update all active docs for this ticker
+    final q = await col
+        .where('status', isEqualTo: 'active')
+        .where('ticker', isEqualTo: symbol)
+        .get();
+    for (final doc in q.docs) {
+      await doc.reference.update({
+        'livePrice': price,
+        'livePriceUpdatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
   @override
   void dispose() {
     _poller?.cancel();
@@ -57,6 +77,7 @@ class _PageTwoState extends State<PageTwo> {
       final p = await _fetchFinnhubPrice(s);
       if (!mounted) return;
       if (p != null) {
+        await _saveLivePriceToDb(s, p);
         setState(() {
           _livePrices[s] = p;
         });
@@ -70,14 +91,43 @@ class _PageTwoState extends State<PageTwo> {
     final changed = newSet.length != _symbols.length || !newSet.containsAll(_symbols);
     _symbols = newSet;
 
-    // Start poller if needed
-    _poller ??= Timer.periodic(const Duration(seconds: 15), (_) {
+    // Start/stop polling based on window
+    _maybeStartOrStopPolling();
+    // If symbols changed and we are within window, kick an immediate refresh
+    if (changed && _isWithinTradingWindow()) {
       _fetchAll(_symbols);
-    });
+    }
+  }
 
-    // Kick an immediate refresh when symbols change
-    if (changed) {
-      _fetchAll(_symbols);
+  bool _isWithinTradingWindow() {
+    final now = DateTime.now(); // Device local time; assume Asia/Jerusalem
+    // Monday=1 ... Sunday=7
+    if (now.weekday < DateTime.monday || now.weekday > DateTime.friday) return false;
+    final minutes = now.hour * 60 + now.minute;
+    const start = 16 * 60 + 30; // 16:30
+    const end = 23 * 60;        // 23:00
+    return minutes >= start && minutes <= end;
+  }
+
+  void _maybeStartOrStopPolling() {
+    if (_isWithinTradingWindow()) {
+      if (_poller == null) {
+        _poller = Timer.periodic(const Duration(minutes: 15), (_) {
+          // Guard inside timer in case window closes while running
+          if (_isWithinTradingWindow()) {
+            _fetchAll(_symbols);
+          } else {
+            _poller?.cancel();
+            _poller = null;
+          }
+        });
+        // Immediate refresh when entering window
+        _fetchAll(_symbols);
+      }
+    } else {
+      // Outside trading window: stop polling
+      _poller?.cancel();
+      _poller = null;
     }
   }
 
@@ -227,7 +277,7 @@ class _PageTwoState extends State<PageTwo> {
             final buyPriceDisplay = formatNumber(buyPriceVal);
             final commissionDisplay = formatNumber(commissionVal);
 
-            final livePriceVal = _livePrices[ticker.toUpperCase()] ?? buyPriceVal;
+            final livePriceVal = (data['livePrice'] ?? _livePrices[ticker.toUpperCase()] ?? buyPriceVal).toDouble();
             final livePriceDisplay = formatNumber(livePriceVal);
             final chg = buyPriceVal > 0 ? ((livePriceVal - buyPriceVal) / buyPriceVal) * 100.0 : 0.0;
             final chgDisplay = chg.toStringAsFixed(2) + '%';

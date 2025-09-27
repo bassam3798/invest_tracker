@@ -176,7 +176,13 @@ class _PageOneState extends State<PageOne> {
                   TextFormField(
                     controller: _tickerController,
                     decoration: const InputDecoration(
-                      labelText: 'Ticker',
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Ticker'),
+                          Text('*', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
                       hintText: 'e.g. AAPL',
                       border: OutlineInputBorder(),
                     ),
@@ -222,7 +228,13 @@ class _PageOneState extends State<PageOne> {
                     child: AbsorbPointer(
                       child: TextFormField(
                         decoration: const InputDecoration(
-                          labelText: 'Buy Date',
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Buy Date'),
+                              Text('*', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
                           hintText: 'Select buy date',
                           border: OutlineInputBorder(),
                           suffixIcon: Icon(Icons.calendar_today),
@@ -246,7 +258,13 @@ class _PageOneState extends State<PageOne> {
                   TextFormField(
                     controller: _buyPriceController,
                     decoration: const InputDecoration(
-                      labelText: 'Buy Price',
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Buy Price'),
+                          Text('*', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
@@ -264,7 +282,13 @@ class _PageOneState extends State<PageOne> {
                   TextFormField(
                     controller: _quantityBoughtController,
                     decoration: const InputDecoration(
-                      labelText: 'Quantity Bought',
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Quantity Bought'),
+                          Text('*', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
