@@ -10,6 +10,8 @@ class PageThree extends StatefulWidget {
 }
 
 class _PageThreeState extends State<PageThree> {
+  int? _selectedRow;
+
   String _fmtNum(num v) {
     if (v.isNaN || v.isInfinite) return '-';
     final s = v.toStringAsFixed(2);
@@ -67,8 +69,10 @@ class _PageThreeState extends State<PageThree> {
           double totalInvested = 0;
           double totalWL = 0;
 
-          for (final doc in docs) {
+          for (int i = 0; i < docs.length; i++) {
+            final doc = docs[i];
             final data = doc.data();
+            final isSelected = _selectedRow == i;
             final ticker = (data['ticker'] ?? '').toString();
             final qtyBought = (data['quantityBought'] ?? 0) as int;
             final qtySold = (data['quantitySold'] ?? 0) as int;
@@ -88,16 +92,24 @@ class _PageThreeState extends State<PageThree> {
             totalWL += wl;
 
             rows.add(
-              DataRow(cells: [
-                DataCell(Text(ticker)),
-                DataCell(Text(qtyBought.toString())),
-                DataCell(Text(_fmtNum(buyPrice))),
-                DataCell(Text(_fmtNum(sellPrice))),
-                DataCell(Text(_fmtNum(commission))),
-                DataCell(Text(_fmtNum(invested))),
-                DataCell(Text('${_fmtSigned(chgPct)}% ', style: TextStyle(color: _valueColor(wl)))),
-                DataCell(Text(_fmtSigned(wl), style: TextStyle(color: _valueColor(wl)))),
-              ]),
+              DataRow(
+                onSelectChanged: (_) {
+                  setState(() => _selectedRow = _selectedRow == i ? null : i);
+                },
+                color: isSelected
+                    ? WidgetStateProperty.all(Colors.blue.withValues(alpha: 0.2))
+                    : null,
+                cells: [
+                  DataCell(Text(ticker)),
+                  DataCell(Text(qtyBought.toString())),
+                  DataCell(Text(_fmtNum(buyPrice))),
+                  DataCell(Text(_fmtNum(sellPrice))),
+                  DataCell(Text(_fmtNum(commission))),
+                  DataCell(Text(_fmtNum(invested))),
+                  DataCell(Text('${_fmtSigned(chgPct)}% ', style: TextStyle(color: _valueColor(wl)))),
+                  DataCell(Text(_fmtSigned(wl), style: TextStyle(color: _valueColor(wl)))),
+                ],
+              ),
             );
           }
 
@@ -129,27 +141,41 @@ class _PageThreeState extends State<PageThree> {
                     const SizedBox(height: 6),
                     // Row below: left = Total Invested, right = Total CHG%
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Left: Total Invested (no special color on value)
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              const TextSpan(text: 'Total Invested: '),
-                              TextSpan(text: _fmtNum(totalInvested), style: const TextStyle(fontWeight: FontWeight.w500)),
-                            ],
+                        Expanded(
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                const TextSpan(text: 'Total Invested: '),
+                                TextSpan(
+                                  text: _fmtNum(totalInvested),
+                                  style: const TextStyle(fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
                           ),
                         ),
-                        // Right: Total CHG% (color only on numeric value)
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              const TextSpan(text: 'Total CHG%: '),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Text.rich(
                               TextSpan(
-                                text: '${_fmtSigned(totalChgPct)}%',
-                                style: TextStyle(color: _valueColor(totalChgPct), fontWeight: FontWeight.w600),
+                                children: [
+                                  const TextSpan(text: 'Total CHG%: '),
+                                  TextSpan(
+                                    text: '${_fmtSigned(totalChgPct)}%',
+                                    style: TextStyle(color: _valueColor(totalChgPct), fontWeight: FontWeight.w600),
+                                  ),
+                                ],
                               ),
-                            ],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
+                            ),
                           ),
                         ),
                       ],
@@ -173,6 +199,9 @@ class _PageThreeState extends State<PageThree> {
                         headingRowHeight: 40,
                         dataRowMinHeight: 36,
                         dataRowMaxHeight: 56,
+                        border: TableBorder.all(color: Colors.grey.shade400, width: 1),
+                        showBottomBorder: true,
+                        showCheckboxColumn: false,
                         columns: const [
                           DataColumn(label: Text('Ticker')),
                           DataColumn(label: Text('Qty')),
@@ -186,6 +215,45 @@ class _PageThreeState extends State<PageThree> {
                         rows: rows,
                       ),
                     ),
+                  ),
+                ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _selectedRow == null
+                            ? null
+                            : () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                final idx = _selectedRow!;
+                                if (idx < 0 || idx >= docs.length) return;
+                                final toDelete = docs[idx].reference;
+                                try {
+                                  await toDelete.delete();
+                                  if (!mounted) return;
+                                  setState(() => _selectedRow = null);
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('Row deleted')),
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Failed to delete: $e')),
+                                  );
+                                }
+                              },
+                        icon: const Icon(Icons.delete),
+                        label: const Text('Delete'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

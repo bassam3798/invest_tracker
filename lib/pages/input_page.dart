@@ -105,26 +105,58 @@ class _PageOneState extends State<PageOne> {
 
       final sold = quantitySold ?? 0;
       final remaining = quantityBought - sold;
-      final status = remaining > 0 ? 'active' : 'done';
-
-      final data = <String, dynamic>{
-        'ticker': ticker,
-        'commission': commission,
-        'buyPrice': buyPrice,
-        'quantityBought': quantityBought,
-        'buyDate': Timestamp.fromDate(_buyDate!),
-        'quantitySold': quantitySold ?? 0,
-        'sellDate': _sellDate != null ? Timestamp.fromDate(_sellDate!) : null,
-        'sellPrice': sellPrice,
-        'status': status,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      await FirebaseFirestore.instance
+      final col = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .collection('stocks')
-          .add(data);
+          .collection('stocks');
+
+      if (sold > 0 && sold < quantityBought) {
+        // 1) DONE trade: represents the sold portion only, commission forced to 0
+        final doneData = <String, dynamic>{
+          'ticker': ticker,
+          'commission': 0.0,
+          'buyPrice': buyPrice,
+          'quantityBought': sold,
+          'buyDate': Timestamp.fromDate(_buyDate!),
+          'quantitySold': sold,
+          'sellDate': _sellDate != null ? Timestamp.fromDate(_sellDate!) : null,
+          'sellPrice': sellPrice,
+          'status': 'done',
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        await col.add(doneData);
+
+        // 2) ACTIVE trade: remaining portion, sell fields cleared
+        final activeData = <String, dynamic>{
+          'ticker': ticker,
+          'commission': commission,
+          'buyPrice': buyPrice,
+          'quantityBought': remaining,
+          'buyDate': Timestamp.fromDate(_buyDate!),
+          'quantitySold': 0,
+          'sellDate': null,
+          'sellPrice': null,
+          'status': 'active',
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        await col.add(activeData);
+      } else {
+        // Single-entry behavior for pure buy or full exit
+        final status = remaining > 0 ? 'active' : 'done';
+        final data = <String, dynamic>{
+          'ticker': ticker,
+          'commission': commission,
+          'buyPrice': buyPrice,
+          'quantityBought': quantityBought,
+          'buyDate': Timestamp.fromDate(_buyDate!),
+          'quantitySold': sold,
+          'sellDate': _sellDate != null ? Timestamp.fromDate(_sellDate!) : null,
+          'sellPrice': sellPrice,
+          'status': status,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        await col.add(data);
+      }
 
       if (!mounted) return;
 
@@ -335,31 +367,42 @@ class _PageOneState extends State<PageOne> {
                   ),
                   const SizedBox(height: 16),
                   // Sell Date field: optional date picker.
-                  GestureDetector(
+                  TextFormField(
+                    readOnly: true,
                     onTap: () => _selectDate(context, false),
-                    child: AbsorbPointer(
-                      child: TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: 'Sell Date',
-                          hintText: 'Select sell date',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.calendar_today),
-                        ),
-                        controller: TextEditingController(
-                          text: _sellDate == null
-                              ? ''
-                              : _sellDate!.toLocal().toString().split(' ')[0],
-                        ),
-                        validator: (value) {
-                          final active = _isSellGroupActive();
-                          if (!active) return null; // optional unless selling info provided
-                          if (_sellDate == null) return 'Sell date is required when selling';
-                          if (_buyDate == null) return 'Buy date is required when selling';
-                          if (_sellDate!.isBefore(_buyDate!)) return 'Sell date cannot be before buy date';
-                          return null;
-                        },
+                    decoration: InputDecoration(
+                      labelText: 'Sell Date',
+                      hintText: 'Select sell date',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_today),
+                          IconButton(
+                            tooltip: 'Clear',
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                _sellDate = null;
+                              });
+                            },
+                          ),
+                        ],
                       ),
                     ),
+                    controller: TextEditingController(
+                      text: _sellDate == null
+                          ? ''
+                          : _sellDate!.toLocal().toString().split(' ')[0],
+                    ),
+                    validator: (value) {
+                      final active = _isSellGroupActive();
+                      if (!active) return null; // optional unless selling info provided
+                      if (_sellDate == null) return 'Sell date is required when selling';
+                      if (_buyDate == null) return 'Buy date is required when selling';
+                      if (_sellDate!.isBefore(_buyDate!)) return 'Sell date cannot be before buy date';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   // Sell Price field: optional double field.
