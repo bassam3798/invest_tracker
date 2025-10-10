@@ -24,6 +24,9 @@ class _PageTwoState extends State<PageTwo> {
   Timer? _poller;
   Set<String> _symbols = {};
   int? _selectedRow;
+  final ScrollController _hHeader = ScrollController();
+  final ScrollController _hBody = ScrollController();
+  bool _syncingH = false;
 
   Future<void> _saveLivePriceToDb(String symbol, double price) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -46,8 +49,24 @@ class _PageTwoState extends State<PageTwo> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Keep header and body horizontal scroll positions in sync (body drives header)
+    _hBody.addListener(() {
+      if (_syncingH) return;
+      _syncingH = true;
+      if (_hHeader.hasClients && _hHeader.offset != _hBody.offset) {
+        _hHeader.jumpTo(_hBody.offset);
+      }
+      _syncingH = false;
+    });
+  }
+
+  @override
   void dispose() {
     _poller?.cancel();
+    _hHeader.dispose();
+    _hBody.dispose();
     super.dispose();
   }
 
@@ -132,6 +151,20 @@ class _PageTwoState extends State<PageTwo> {
       _poller?.cancel();
       _poller = null;
     }
+  }
+
+  void _showBottomToast(BuildContext context, String message, {Color? bg}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontSize: 13)),
+        behavior: SnackBarBehavior.fixed,
+        elevation: 0,
+        backgroundColor: bg ?? Colors.black.withValues(alpha: 0.85),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // shorter height
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -234,6 +267,18 @@ class _PageTwoState extends State<PageTwo> {
             return '0%';
           }
 
+          // Ensure header and body tables share exact column widths
+          final Map<int, TableColumnWidth> columnWidths = <int, TableColumnWidth>{
+            0: const FixedColumnWidth(95),  // Ticker
+            1: const FixedColumnWidth(70),  // QNT
+            2: const FixedColumnWidth(75),  // prc
+            3: const FixedColumnWidth(70),  // com
+            4: const FixedColumnWidth(90),  // live prc
+            5: const FixedColumnWidth(105), // W/L
+            6: const FixedColumnWidth(90),  // CHG %
+          };
+          final double totalTableWidth = 95 + 70 + 75 + 70 + 90 + 105 + 90; // sum of FixedColumnWidth values
+
           final TableRow headerRow = TableRow(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -300,10 +345,8 @@ class _PageTwoState extends State<PageTwo> {
             final winLoseColor = valueColor(winLose);
 
             final baseRowColor = chg < 0
-                ? Colors.red.withValues(alpha: 0.10)
-                : (chg > 0
-                    ? Colors.green.withValues(alpha: 0.10)
-                    : Colors.grey.withValues(alpha: 0.08));
+                ? Colors.red.withValues(alpha: 0.15)
+                : Colors.green.withValues(alpha: 0.15);
             // Header is visual index 0; data rows start at 1
             final rowIndex = dataRows.length + 1;
             final isSelected = _selectedRow == rowIndex;
@@ -323,11 +366,13 @@ class _PageTwoState extends State<PageTwo> {
                   ),
                 );
 
+            final borderColor = chg < 0 ? Colors.red : Colors.green;
+            final chgColor = chg < 0 ? Colors.red : Colors.green; // zero is green
             dataRows.add(
               TableRow(
                 decoration: BoxDecoration(
                   color: rowColor,
-                  border: isSelected ? Border.all(color: Colors.blue, width: 1.0) : null,
+                  border: Border(bottom: BorderSide(color: borderColor.withValues(alpha: 1.0), width: 1.4)),
                 ),
                 children: [
                   cell(ticker.toUpperCase()),
@@ -336,7 +381,7 @@ class _PageTwoState extends State<PageTwo> {
                   cell(commissionDisplay),
                   cell(livePriceDisplay),
                   cell(winLoseDisplay, style: TextStyle(color: winLoseColor, fontWeight: FontWeight.w600)),
-                  cell(chgDisplay),
+                  cell(chgDisplay, style: TextStyle(color: chgColor, fontWeight: FontWeight.w600)),
                 ],
               ),
             );
@@ -380,7 +425,7 @@ class _PageTwoState extends State<PageTwo> {
                   // Below: W/L left, CHG right
                   Row(
                     children: [
-                      Expanded(
+                      Expanded(flex: 1,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
@@ -389,29 +434,43 @@ class _PageTwoState extends State<PageTwo> {
                             const SizedBox(width: 6),
                             const Text('Total W/L', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
                             const SizedBox(width: 6),
-                            Text(
-                              totalWLDisplay,
-                              style: TextStyle(
-                                color: totalWL >= 0 ? Colors.green : Colors.red,
-                                fontWeight: FontWeight.w800,
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  totalWLDisplay,
+                                  textAlign: TextAlign.left,
+                                  style: TextStyle(
+                                    color: totalWL >= 0 ? Colors.green : Colors.red,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Expanded(
+                      Expanded(flex: 1,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             const Icon(Icons.percent, color: Colors.white70, size: 18),
                             const SizedBox(width: 6),
-                            const Text('Total CHG% ', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+                            const Text('Total CHG%', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
                             const SizedBox(width: 6),
-                            Text(
-                              totalChgPctDisplay,
-                              style: TextStyle(
-                                color: portfolioColor,
-                                fontWeight: FontWeight.w800,
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  totalChgPctDisplay,
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    color: portfolioColor,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -447,24 +506,68 @@ class _PageTwoState extends State<PageTwo> {
                               child: Container(
                                 decoration: BoxDecoration(
                                   border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                                  color: Colors.white.withValues(alpha: 0.10),
+                                  color: Colors.white.withValues(alpha: 0.18),
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Fixed header row
-                                    Table(
-                                      defaultColumnWidth: const IntrinsicColumnWidth(),
-                                      border: TableBorder.all(color: Colors.white.withValues(alpha: 0.24), width: 0.6),
-                                      children: [headerRow],
+                                    // Horizontal scrollable HEADER (not expanded) — mirror only
+                                    ClipRect(
+                                      child: IgnorePointer(
+                                        ignoring: true, // header does not accept user gestures
+                                        child: SingleChildScrollView(
+                                          controller: _hHeader,
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          scrollDirection: Axis.horizontal,
+                                          clipBehavior: Clip.hardEdge,
+                                          child: SizedBox(
+                                            width: totalTableWidth,
+                                            child: Table(
+                                              columnWidths: columnWidths,
+                                              border: TableBorder(
+                                                top: const BorderSide(color: Colors.transparent, width: 0),
+                                                left: const BorderSide(color: Colors.transparent, width: 0),
+                                                right: const BorderSide(color: Colors.transparent, width: 0),
+                                                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.30), width: 0.6),
+                                                horizontalInside: const BorderSide(color: Colors.transparent, width: 0),
+                                                verticalInside: BorderSide(color: Colors.white.withValues(alpha: 0.30), width: 0.6),
+                                              ),
+                                              children: [headerRow],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                    // Scrollable body rows
+                                    // Expanded BODY with BOTH horizontal and vertical scrolling
                                     Expanded(
-                                      child: SingleChildScrollView(
-                                        child: Table(
-                                          defaultColumnWidth: const IntrinsicColumnWidth(),
-                                          border: TableBorder.all(color: Colors.white.withValues(alpha: 0.24), width: 0.6),
-                                          children: dataRows,
+                                      child: ClipRect(
+                                        child: Scrollbar(
+                                          controller: _hBody,
+                                          thumbVisibility: true,
+                                          child: SingleChildScrollView(
+                                            controller: _hBody,
+                                            scrollDirection: Axis.horizontal,
+                                            clipBehavior: Clip.hardEdge,
+                                            child: SizedBox(
+                                              width: totalTableWidth,
+                                              child: Scrollbar(
+                                                child: SingleChildScrollView(
+                                                  child: Table(
+                                                    columnWidths: columnWidths,
+                                                    border: TableBorder(
+                                                      top: const BorderSide(color: Colors.transparent, width: 0),
+                                                      left: const BorderSide(color: Colors.transparent, width: 0),
+                                                      right: const BorderSide(color: Colors.transparent, width: 0),
+                                                      bottom: const BorderSide(color: Colors.transparent, width: 0),
+                                                      horizontalInside: const BorderSide(color: Colors.transparent, width: 0),
+                                                      verticalInside: BorderSide(color: Colors.white.withValues(alpha: 0.25), width: 0.6),
+                                                    ),
+                                                    children: dataRows,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -479,9 +582,9 @@ class _PageTwoState extends State<PageTwo> {
 
                     // Bottom glass action bar
                     SafeArea(
-                      top: false,
+                      top: true,
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: BackdropFilter(
@@ -703,14 +806,10 @@ class _PageTwoState extends State<PageTwo> {
                                                                     await batch.commit();
                                                                     if (!context.mounted) return;
                                                                     Navigator.pop(context);
-                                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                                      const SnackBar(content: Text('Sell executed successfully')),
-                                                                    );
+                                                                    _showBottomToast(context, 'Sell executed successfully');
                                                                   } catch (e) {
                                                                     if (!context.mounted) return;
-                                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                                      SnackBar(content: Text('Sell failed: $e')),
-                                                                    );
+                                                                    _showBottomToast(context, 'Sell failed: $e', bg: Colors.red.withValues(alpha: 0.9));
                                                                   }
                                                                 },
                                                           child: const Text('Confirm'),
@@ -722,7 +821,7 @@ class _PageTwoState extends State<PageTwo> {
                                               },
                                             );
                                           },
-                                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16)),
                                     icon: const Icon(Icons.shopping_cart_checkout),
                                     label: const Text('Sell'),
                                   ),
@@ -775,21 +874,17 @@ class _PageTwoState extends State<PageTwo> {
                                                   setState(() {
                                                     _selectedRow = null;
                                                   });
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(content: Text('Trade deleted')),
-                                                  );
+                                                  _showBottomToast(context, 'Trade deleted');
                                                 } catch (e) {
                                                   if (!mounted) return;
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(content: Text('Failed to delete: $e')),
-                                                  );
+                                                  _showBottomToast(context, 'Failed to delete: $e', bg: Colors.red.withValues(alpha: 0.9));
                                                 }
                                               }
                                             },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.red,
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                                       ),
                                       icon: const Icon(Icons.delete_outline),
                                       label: const Text('Delete'),
