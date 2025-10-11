@@ -27,6 +27,9 @@ class _PageTwoState extends State<PageTwo> {
   final ScrollController _hHeader = ScrollController();
   final ScrollController _hBody = ScrollController();
   bool _syncingH = false;
+  // Cache the Firestore stream to prevent resubscribe flicker on row taps
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _activeStream;
+  String? _uid;
 
   Future<void> _saveLivePriceToDb(String symbol, double price) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -192,12 +195,17 @@ class _PageTwoState extends State<PageTwo> {
       );
     }
 
-    final query = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('stocks')
-        .where('status', isEqualTo: 'active')
-        .orderBy('createdAt', descending: true);
+    // Build (or reuse) the cached stream once per user
+    if (_uid != user.uid || _activeStream == null) {
+      _uid = user.uid;
+      _activeStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('stocks')
+          .where('status', isEqualTo: 'active')
+          .orderBy('createdAt', descending: true)
+          .snapshots();
+    }
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -219,7 +227,7 @@ class _PageTwoState extends State<PageTwo> {
         children: [
           const _SpaceBackground(),
           StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: query.snapshots(),
+        stream: _activeStream,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
