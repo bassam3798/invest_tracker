@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'pages/input_page.dart';
 import 'pages/active_trades.dart';
-import 'pages/page_three.dart';
+import 'pages/done_trades_statistics_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -110,7 +110,7 @@ class HomePage extends StatelessWidget {
                             icon: Icons.insights,
                             title: 'Done Trades Statistics',
                             subtitle: 'Review P&L, ROI and more',
-                            onTap: () => _open(context, const PageThree()),
+                            onTap: () => _open(context, const DoneTradesStatisticsPage()),
                           ),
                         ];
 
