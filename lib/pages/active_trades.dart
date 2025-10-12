@@ -73,7 +73,7 @@ class _PageTwoState extends State<PageTwo> {
     super.dispose();
   }
 
-  Future<double?> _fetchFinnhubPrice(String symbol) async {
+  Future<double?> _fetchFinnhubPrice(String symbol, {bool usePrevClose = false}) async {
     if (kFinnhubApiKey == 'YOUR_FINNHUB_API_KEY' || kFinnhubApiKey.isEmpty) {
       // No key provided; skip network call.
       return null;
@@ -86,10 +86,15 @@ class _PageTwoState extends State<PageTwo> {
       if (res.statusCode != 200) return null;
       final body = await res.transform(utf8.decoder).join();
       final data = json.decode(body) as Map<String, dynamic>;
-      // Finnhub returns current price in the "c" field.
-      final price = (data['c'] ?? 0).toDouble();
-      if (price == 0) return null;
-      return price;
+      // Finnhub returns current price in "c" and previous close in "pc".
+      final double c = (data['c'] ?? 0).toDouble();
+      final double pc = (data['pc'] ?? 0).toDouble();
+      if (usePrevClose) {
+        return pc == 0 ? (c == 0 ? null : c) : pc;
+      }
+      // During market hours prefer current; outside hours fall back to previous close if current is 0/invalid
+      if (c != 0) return c;
+      return pc == 0 ? null : pc;
     } catch (_) {
       return null;
     } finally {
@@ -97,9 +102,9 @@ class _PageTwoState extends State<PageTwo> {
     }
   }
 
-  Future<void> _fetchAll(Set<String> symbols) async {
+  Future<void> _fetchAll(Set<String> symbols, {bool usePrevClose = false}) async {
     for (final s in symbols) {
-      final p = await _fetchFinnhubPrice(s);
+      final p = await _fetchFinnhubPrice(s, usePrevClose: usePrevClose);
       if (!mounted) return;
       if (p != null) {
         await _saveLivePriceToDb(s, p);
@@ -118,9 +123,14 @@ class _PageTwoState extends State<PageTwo> {
 
     // Start/stop polling based on window
     _maybeStartOrStopPolling();
-    // If symbols changed and we are within window, kick an immediate refresh
-    if (changed && _isWithinTradingWindow()) {
-      _fetchAll(_symbols);
+    // If symbols changed, fetch immediately using current price during trading window, previous close outside
+    if (changed) {
+      if (_isWithinTradingWindow()) {
+        _fetchAll(_symbols, usePrevClose: false);
+      } else {
+        // Market closed → load last close once so UI shows a value
+        _fetchAll(_symbols, usePrevClose: true);
+      }
     }
   }
 
@@ -140,19 +150,22 @@ class _PageTwoState extends State<PageTwo> {
         _poller = Timer.periodic(const Duration(minutes: 15), (_) {
           // Guard inside timer in case window closes while running
           if (_isWithinTradingWindow()) {
-            _fetchAll(_symbols);
+            _fetchAll(_symbols, usePrevClose: false);
           } else {
             _poller?.cancel();
             _poller = null;
           }
         });
         // Immediate refresh when entering window
-        _fetchAll(_symbols);
+        _fetchAll(_symbols, usePrevClose: false);
       }
     } else {
-      // Outside trading window: stop polling
+      // Outside trading window: stop polling and show last close
       _poller?.cancel();
       _poller = null;
+      if (_symbols.isNotEmpty) {
+        _fetchAll(_symbols, usePrevClose: true);
+      }
     }
   }
 
@@ -237,7 +250,12 @@ class _PageTwoState extends State<PageTwo> {
           }
           final docs = snap.data?.docs ?? const [];
           if (docs.isEmpty) {
-            return const Center(child: Text('No active trades'));
+            return const Center(
+              child: Text(
+                'No active trades',
+                style: TextStyle(color: Colors.white),
+              ),
+            );
           }
 
           // Collect unique ticker symbols and start polling Finnhub
@@ -331,6 +349,7 @@ class _PageTwoState extends State<PageTwo> {
 
           double totalInvested = 0.0;
           double totalWL = 0.0;
+          double investedWithLive = 0.0;
           for (final doc in docs) {
             final data = doc.data();
             final ticker = (data['ticker'] ?? '') as String;
@@ -343,18 +362,24 @@ class _PageTwoState extends State<PageTwo> {
             totalInvested += total;
             final buyPriceDisplay = formatNumber(buyPriceVal);
             final commissionDisplay = formatNumber(commissionVal);
-            final livePriceVal = (data['livePrice'] ?? _livePrices[ticker.toUpperCase()] ?? buyPriceVal).toDouble();
-            final livePriceDisplay = formatNumber(livePriceVal);
-            final chg = buyPriceVal > 0 ? ((livePriceVal - buyPriceVal) / buyPriceVal) * 100.0 : 0.0;
-            final chgDisplay = chg.toStringAsFixed(2) + '%';
-            final winLose = (livePriceVal - buyPriceVal) * remaining;
-            totalWL += winLose;
-            final winLoseDisplay = formatSigned(winLose);
-            final winLoseColor = valueColor(winLose);
+            final double? livePriceVal = (data['livePrice'] ?? _livePrices[ticker.toUpperCase()])?.toDouble();
+            final bool hasLive = livePriceVal != null && livePriceVal > 0;
+            final String livePriceDisplay = hasLive ? formatNumber(livePriceVal) : '—';
+            final double? chg = (hasLive && buyPriceVal > 0)
+                ? ((livePriceVal - buyPriceVal) / buyPriceVal) * 100.0
+                : null;
+            final String chgDisplay = chg != null ? '${chg.toStringAsFixed(2)}%' : '—';
+            final double? winLose = hasLive ? (livePriceVal - buyPriceVal) * remaining : null;
+            if (winLose != null) {
+              totalWL += winLose;
+              investedWithLive += total; // only count rows that have live data
+            }
+            final String winLoseDisplay = (winLose == null) ? '—' : formatSigned(winLose);
+            final Color winLoseColor = (winLose == null) ? Colors.white70 : valueColor(winLose);
 
-            final baseRowColor = chg < 0
-                ? Colors.red.withValues(alpha: 0.15)
-                : Colors.green.withValues(alpha: 0.15);
+            final baseRowColor = (chg == null)
+                ? Colors.white.withValues(alpha: 0.08)
+                : (chg < 0 ? Colors.red.withValues(alpha: 0.15) : Colors.green.withValues(alpha: 0.15));
             // Header is visual index 0; data rows start at 1
             final rowIndex = dataRows.length + 1;
             final isSelected = _selectedRow == rowIndex;
@@ -374,8 +399,12 @@ class _PageTwoState extends State<PageTwo> {
                   ),
                 );
 
-            final borderColor = chg < 0 ? Colors.red : Colors.green;
-            final chgColor = chg < 0 ? Colors.red : Colors.green; // zero is green
+            final borderColor = (chg == null)
+                ? Colors.white.withValues(alpha: 0.30)
+                : (chg < 0 ? Colors.red : Colors.green);
+            final chgColor = (chg == null)
+                ? Colors.white70
+                : (chg < 0 ? Colors.red : Colors.green);
             dataRows.add(
               TableRow(
                 decoration: BoxDecoration(
@@ -397,8 +426,9 @@ class _PageTwoState extends State<PageTwo> {
 
           final totalInvestedDisplay = formatNumber(totalInvested);
           final totalWLDisplay = formatSigned(totalWL);
-          final totalChgPct = totalInvested != 0
-              ? (totalWL / totalInvested) * 100
+          final double baseInvestForPct = investedWithLive > 0 ? investedWithLive : totalInvested;
+          final totalChgPct = baseInvestForPct != 0
+              ? (totalWL / baseInvestForPct) * 100
               : 0.0;
           final totalChgPctDisplay = formatSignedPct(totalChgPct);
           final portfolioColor = valueColor(totalChgPct);

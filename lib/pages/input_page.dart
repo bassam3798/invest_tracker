@@ -212,6 +212,7 @@ class _PageOneState extends State<PageOne> {
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           title: const Text(
             'Add Stock',
@@ -221,356 +222,368 @@ class _PageOneState extends State<PageOne> {
           foregroundColor: Colors.white,
           elevation: 0,
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Add space from the top to position the form lower on the page.
-              const SizedBox(height: 10),
-              Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Ticker field: mandatory and length must be 3–4 characters.
-                    TextFormField(
-                      controller: _tickerController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Ticker', style: TextStyle(color: Colors.white)),
-                            Text('*', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                        hintText: 'e.g. AAPL',
-                        hintStyle: TextStyle(color: Colors.white70),
-                        labelStyle: TextStyle(color: Colors.white),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white, width: 2),
-                        ),
-                      ),
-                      maxLength: 4,
-                      buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
-                        return Text(
-                          '$currentLength/$maxLength',
-                          style: const TextStyle(color: Colors.white),
-                        );
-                      },
-                      inputFormatters: [
-                        UpperCaseTextFormatter(),
-                      ],
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Ticker is required';
-                        }
-                        if (!RegExp(r'^[A-Z]+$').hasMatch(value)) {
-                          return 'Ticker must contain only capital letters';
-                        }
-                        if (value.length > 4) {
-                          return 'Ticker cannot be more than 4 letters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _commissionController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelStyle: TextStyle(color: Colors.white),
-                        hintStyle: TextStyle(color: Colors.white70),
-                        labelText: 'Commission',
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white, width: 2),
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return null; // default to 0 if empty
-                        }
-                        if (double.tryParse(value) == null) {
-                          return 'Enter a valid number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    // Buy Date field: mandatory date picker.
-                    GestureDetector(
-                      onTap: () => _selectDate(context, true),
-                      child: AbsorbPointer(
-                        child: TextFormField(
-                          style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('Buy Date', style: TextStyle(color: Colors.white)),
-                                Text('*', style: TextStyle(color: Colors.red)),
-                              ],
-                            ),
-                            hintText: 'Select buy date',
-                            hintStyle: TextStyle(color: Colors.white70),
-                            labelStyle: TextStyle(color: Colors.white),
-                            border: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white, width: 2),
-                            ),
-                            suffixIcon: Icon(Icons.calendar_today, color: Colors.white70),
-                          ),
-                          controller: TextEditingController(
-                            text: _buyDate == null
-                                ? ''
-                                : _buyDate!.toLocal().toString().split(' ')[0],
-                          ),
-                          validator: (value) {
-                            if (_buyDate == null) {
-                              return 'Buy date is required';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Buy Price field: mandatory double field.
-                    TextFormField(
-                      controller: _buyPriceController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Buy Price', style: TextStyle(color: Colors.white)),
-                            Text('*', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                        hintStyle: TextStyle(color: Colors.white70),
-                        labelStyle: TextStyle(color: Colors.white),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white, width: 2),
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Buy price is required';
-                        }
-                        if (double.tryParse(value) == null) {
-                          return 'Enter a valid number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _quantityBoughtController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Quantity Bought', style: TextStyle(color: Colors.white)),
-                            Text('*', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                        hintStyle: TextStyle(color: Colors.white70),
-                        labelStyle: TextStyle(color: Colors.white),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white, width: 2),
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Quantity bought is required';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Enter a valid integer';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _quantitySoldController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelStyle: TextStyle(color: Colors.white),
-                        hintStyle: TextStyle(color: Colors.white70),
-                        labelText: 'Quantity Sold',
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white, width: 2),
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        final active = _isSellGroupActive();
-                        if ((value == null || value.isEmpty)) {
-                          return active ? 'Quantity sold is required when selling' : null;
-                        }
-                        final sold = int.tryParse(value);
-                        if (sold == null) {
-                          return 'Enter a valid integer';
-                        }
-                        final bought = int.tryParse(_quantityBoughtController.text);
-                        if (bought != null && sold > bought) {
-                          return 'Quantity sold cannot exceed quantity bought';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    // Sell Date field: optional date picker.
-                    TextFormField(
-                      readOnly: true,
-                      style: const TextStyle(color: Colors.white),
-                      onTap: () => _selectDate(context, false),
-                      decoration: InputDecoration(
-                        labelStyle: const TextStyle(color: Colors.white),
-                        hintStyle: const TextStyle(color: Colors.white70),
-                        labelText: 'Sell Date',
-                        hintText: 'Select sell date',
-                        border: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        enabledBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white, width: 2),
-                        ),
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.calendar_today, color: Colors.white70),
-                            IconButton(
-                              tooltip: 'Clear',
-                              icon: const Icon(Icons.clear, color: Colors.white70),
-                              onPressed: () {
-                                setState(() {
-                                  _sellDate = null;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      controller: TextEditingController(
-                        text: _sellDate == null
-                            ? ''
-                            : _sellDate!.toLocal().toString().split(' ')[0],
-                      ),
-                      validator: (value) {
-                        final active = _isSellGroupActive();
-                        if (!active) return null; // optional unless selling info provided
-                        if (_sellDate == null) return 'Sell date is required when selling';
-                        if (_buyDate == null) return 'Buy date is required when selling';
-                        if (_sellDate!.isBefore(_buyDate!)) return 'Sell date cannot be before buy date';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    // Sell Price field: optional double field.
-                    TextFormField(
-                      controller: _sellPriceController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelStyle: TextStyle(color: Colors.white),
-                        hintStyle: TextStyle(color: Colors.white70),
-                        labelText: 'Sell Price',
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white, width: 2),
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        final active = _isSellGroupActive();
-                        if (value == null || value.isEmpty) {
-                          return active ? 'Sell price is required when selling' : null;
-                        }
-                        if (double.tryParse(value) == null) {
-                          return 'Enter a valid number';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 10,
+                  // Add bottom padding that expands when the keyboard is open
+                  bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
                 ),
-              ),
-              // Spacer pushes the submit button to the bottom of the page.
-              const Spacer(),
-              Align(
-                alignment: Alignment.bottomRight,
-                // Apply padding to push the button slightly up and to the left
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 28, bottom: 45),
-                  child: ElevatedButton(
-                    onPressed: _submit,
-                    // Increase padding and text size to enlarge the button
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 50,
-                        vertical: 20,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Ticker field: mandatory and length must be 3–4 characters.
+                          TextFormField(
+                            controller: _tickerController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('Ticker', style: TextStyle(color: Colors.white)),
+                                  Text('*', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                              hintText: 'e.g. AAPL',
+                              hintStyle: TextStyle(color: Colors.white70),
+                              labelStyle: TextStyle(color: Colors.white),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                            maxLength: 4,
+                            buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
+                              return Text(
+                                '$currentLength/$maxLength',
+                                style: const TextStyle(color: Colors.white),
+                              );
+                            },
+                            inputFormatters: [
+                              UpperCaseTextFormatter(),
+                            ],
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Ticker is required';
+                              }
+                              if (!RegExp(r'^[A-Z]+$').hasMatch(value)) {
+                                return 'Ticker must contain only capital letters';
+                              }
+                              if (value.length > 4) {
+                                return 'Ticker cannot be more than 4 letters';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _commissionController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              labelStyle: TextStyle(color: Colors.white),
+                              hintStyle: TextStyle(color: Colors.white70),
+                              labelText: 'Commission',
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return null; // default to 0 if empty
+                              }
+                              if (double.tryParse(value) == null) {
+                                return 'Enter a valid number';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          // Buy Date field: mandatory date picker.
+                          GestureDetector(
+                            onTap: () => _selectDate(context, true),
+                            child: AbsorbPointer(
+                              child: TextFormField(
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('Buy Date', style: TextStyle(color: Colors.white)),
+                                      Text('*', style: TextStyle(color: Colors.red)),
+                                    ],
+                                  ),
+                                  hintText: 'Select buy date',
+                                  hintStyle: TextStyle(color: Colors.white70),
+                                  labelStyle: TextStyle(color: Colors.white),
+                                  border: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.white),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.white),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.white, width: 2),
+                                  ),
+                                  suffixIcon: Icon(Icons.calendar_today, color: Colors.white70),
+                                ),
+                                controller: TextEditingController(
+                                  text: _buyDate == null
+                                      ? ''
+                                      : _buyDate!.toLocal().toString().split(' ')[0],
+                                ),
+                                validator: (value) {
+                                  if (_buyDate == null) {
+                                    return 'Buy date is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Buy Price field: mandatory double field.
+                          TextFormField(
+                            controller: _buyPriceController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('Buy Price', style: TextStyle(color: Colors.white)),
+                                  Text('*', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                              hintStyle: TextStyle(color: Colors.white70),
+                              labelStyle: TextStyle(color: Colors.white),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Buy price is required';
+                              }
+                              if (double.tryParse(value) == null) {
+                                return 'Enter a valid number';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _quantityBoughtController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('Quantity Bought', style: TextStyle(color: Colors.white)),
+                                  Text('*', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                              hintStyle: TextStyle(color: Colors.white70),
+                              labelStyle: TextStyle(color: Colors.white),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Quantity bought is required';
+                              }
+                              if (int.tryParse(value) == null) {
+                                return 'Enter a valid integer';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _quantitySoldController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              labelStyle: TextStyle(color: Colors.white),
+                              hintStyle: TextStyle(color: Colors.white70),
+                              labelText: 'Quantity Sold',
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final active = _isSellGroupActive();
+                              if ((value == null || value.isEmpty)) {
+                                return active ? 'Quantity sold is required when selling' : null;
+                              }
+                              final sold = int.tryParse(value);
+                              if (sold == null) {
+                                return 'Enter a valid integer';
+                              }
+                              final bought = int.tryParse(_quantityBoughtController.text);
+                              if (bought != null && sold > bought) {
+                                return 'Quantity sold cannot exceed quantity bought';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          // Sell Date field: optional date picker.
+                          TextFormField(
+                            readOnly: true,
+                            style: const TextStyle(color: Colors.white),
+                            onTap: () => _selectDate(context, false),
+                            decoration: InputDecoration(
+                              labelStyle: const TextStyle(color: Colors.white),
+                              hintStyle: const TextStyle(color: Colors.white70),
+                              labelText: 'Sell Date',
+                              hintText: 'Select sell date',
+                              border: const OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              enabledBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              focusedBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                              suffixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.calendar_today, color: Colors.white70),
+                                  IconButton(
+                                    tooltip: 'Clear',
+                                    icon: const Icon(Icons.clear, color: Colors.white70),
+                                    onPressed: () {
+                                      setState(() {
+                                        _sellDate = null;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            controller: TextEditingController(
+                              text: _sellDate == null
+                                  ? ''
+                                  : _sellDate!.toLocal().toString().split(' ')[0],
+                            ),
+                            validator: (value) {
+                              final active = _isSellGroupActive();
+                              if (!active) return null; // optional unless selling info provided
+                              if (_sellDate == null) return 'Sell date is required when selling';
+                              if (_buyDate == null) return 'Buy date is required when selling';
+                              if (_sellDate!.isBefore(_buyDate!)) return 'Sell date cannot be before buy date';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          // Sell Price field: optional double field.
+                          TextFormField(
+                            controller: _sellPriceController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: const InputDecoration(
+                              labelStyle: TextStyle(color: Colors.white),
+                              hintStyle: TextStyle(color: Colors.white70),
+                              labelText: 'Sell Price',
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white, width: 2),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final active = _isSellGroupActive();
+                              if (value == null || value.isEmpty) {
+                                return active ? 'Sell price is required when selling' : null;
+                              }
+                              if (double.tryParse(value) == null) {
+                                return 'Enter a valid number';
+                              }
+                              return null;
+                            },
+                          ),
+                          // Fill remaining space so the bottom button stays at the bottom when keyboard is closed.
+                          const SizedBox(height: 24),
+                        ],
                       ),
-                      textStyle: const TextStyle(fontSize: 18),
                     ),
-                    child: const Text('Submit'),
                   ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ),
-      ),
-    );
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+                    textStyle: const TextStyle(fontSize: 18),
+                  ),
+                  child: const Text('Submit'),
+                ),
+              ],
+            ),
+          ),
+        ),
+    ));
   }
 }
 

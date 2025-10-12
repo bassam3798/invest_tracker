@@ -119,6 +119,9 @@ class _DoneTradesStatisticsPageState extends State<DoneTradesStatisticsPage> {
             style: TextStyle(color: Colors.white),
           ),
           backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          iconTheme: const IconThemeData(color: Colors.white),
+          leading: const BackButton(color: Colors.white),
           elevation: 0,
         ),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -133,7 +136,12 @@ class _DoneTradesStatisticsPageState extends State<DoneTradesStatisticsPage> {
 
           final docs = snap.data?.docs ?? const [];
           if (docs.isEmpty) {
-            return const Center(child: Text('No completed (done) trades'));
+            return const Center(
+              child: Text(
+                'there are no done trades',
+                style: TextStyle(color: Colors.white),
+              ),
+            );
           }
 
           // Build rows for Table
